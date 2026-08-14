@@ -4,20 +4,25 @@ const cors = require("cors");
 const express = require("express");
 const authRoutes = require("./routes/authRoutes");
 const { testDatabaseConnection } = require("./config/db");
-
 const app = express();
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));
+
+// Enable JSON body parsing for incoming requests
+app.use(express.json());
 
 // Configure CORS to allow frontend access (use FRONTEND_ORIGIN env var to override)
-const allowedOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+// 1. Define an array of all permitted client URLs
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://192.168.1.6:3000'
+];
+
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // allow requests with no origin (e.g., curl, server-to-server)
-      if (!origin) return callback(null, true);
-      if (process.env.FRONTEND_ORIGIN === '*') return callback(null, true);
-      if (origin === allowedOrigin) return callback(null, true);
-      return callback(new Error('CORS policy: Origin not allowed'), false);
-    },
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
