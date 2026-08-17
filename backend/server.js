@@ -1,85 +1,76 @@
-require("dotenv").config();
+console.log(" CHECKPOINT 1: Server file started. Reading .env...");
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { testDatabaseConnection } = require('./config/db');
 
-const cors = require("cors");
-const express = require("express");
-const authRoutes = require("./routes/authRoutes");
-const { testDatabaseConnection } = require("./config/db");
+console.log(" CHECKPOINT 2: Importing Routes...");
+const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const teacherRoutes = require('./routes/teacherRoutes');
+const userRoutes = require('./routes/userRoutes');
+const classroomsRoutes = require('./routes/classroomsRoutes');
+const studentsRoutes = require('./routes/studentsRoutes');
+const enrollmentsRoutes = require('./routes/enrollmentsRoutes');
+const marksRoutes = require('./routes/marksRoutes');
+
+console.log(" CHECKPOINT 3: Routes imported. Configuring Express...");
 const app = express();
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true
+  origin: ['http://localhost:3000', 'http://192.168.1.7:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Enable JSON body parsing for incoming requests
-app.use(express.json());
+app.use(express.json({ limit: '10kb' })); 
 
-// Configure CORS to allow frontend access (use FRONTEND_ORIGIN env var to override)
-// 1. Define an array of all permitted client URLs
-const allowedOrigins = [
-    'http://localhost:3000',
-    'http://192.168.1.6:3000'
-];
-
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  })
-);
-app.use(express.json());
-
-app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    service: "backend"
-  });
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
 });
 
-app.use("/api", authRoutes);
-const testRoutes = require('./routes/testRoutes');
-app.use('/api/test', testRoutes);
-const adminRoutes = require('./routes/adminRoutes');
+// API Routes
+app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok', timestamp: new Date() }));
+app.use('/api', authRoutes);
 app.use('/api/admin', adminRoutes);
-const teacherRoutes = require('./routes/teacherRoutes');
 app.use('/api/teacher', teacherRoutes);
-const userRoutes = require('./routes/userRoutes');
 app.use('/api/users', userRoutes);
-// Classrooms, students, enrollments, marks
-const classroomsRoutes = require('./routes/classroomsRoutes');
 app.use('/api/classrooms', classroomsRoutes);
-// Students, enrollments, marks
-const studentsRoutes = require('./routes/studentsRoutes');
 app.use('/api/students', studentsRoutes);
-const enrollmentsRoutes = require('./routes/enrollmentsRoutes');
 app.use('/api/enrollments', enrollmentsRoutes);
-const marksRoutes = require('./routes/marksRoutes');
 app.use('/api/marks', marksRoutes);
 
+// 404 Fallback Handler (FIXED: No asterisk used here)
 app.use((req, res) => {
-  res.status(404).json({
-    message: "Route not found."
-  });
+  res.status(404).json({ error: 'Endpoint not found.' });
 });
 
+// Global Error Handler
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({
-    message: "Internal server error."
+  console.error(`[Error] ${req.method} ${req.path}:`, err.message);
+  res.status(err.status || 500).json({ 
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error.' 
   });
 });
 
-async function startServer() {
-  await testDatabaseConnection();
+console.log(" CHECKPOINT 4: Middleware configured. Preparing to boot...");
 
-  const port = Number(process.env.PORT || 5000);
-  app.listen(port, () => {
-    console.log(`Backend server running on port ${port}`);
-  });
-}
+const PORT = process.env.PORT || 5000;
 
-startServer().catch((error) => {
-  console.error("Failed to start backend server:", error);
-  process.exit(1);
-});
+const startServer = async () => {
+  console.log(" CHECKPOINT 5: startServer() executing...");
+  try {
+    await testDatabaseConnection();
+    console.log(" CHECKPOINT 6: Database connected. Opening port...");
+    app.listen(PORT, () => {
+      console.log(` Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error(' Database connection failed. Server shutting down.', error);
+    process.exit(1);
+  }
+};
+
+startServer();

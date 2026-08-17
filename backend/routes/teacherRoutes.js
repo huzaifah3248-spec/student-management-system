@@ -4,8 +4,8 @@ const { authenticateJWT, requireRole } = require('../middleware/authMiddleware')
 
 const router = express.Router();
 
-// GET /api/teacher/students - list users with role STUDENT (protected: teacher and admin)
-router.get('/students', authenticateJWT, requireRole(['teacher', 'admin', 'administrator', 'principal']), async (req, res, next) => {
+// GET /api/teacher/students - list users with role STUDENT
+router.get('/students', authenticateJWT, requireRole(['TEACHER', 'ADMIN', 'PRINCIPAL']), async (req, res, next) => {
   try {
     const [rows] = await pool.execute(
       `SELECT s.id, s.student_id, s.first_name, s.last_name, s.grade_level, s.section_no, s.class_roll_no, u.email
@@ -20,7 +20,7 @@ router.get('/students', authenticateJWT, requireRole(['teacher', 'admin', 'admin
 });
 
 // GET /api/teacher/subjects - subjects assigned to current teacher
-router.get('/subjects', authenticateJWT, requireRole(['teacher']), async (req, res, next) => {
+router.get('/subjects', authenticateJWT, requireRole(['TEACHER']), async (req, res, next) => {
   try {
     const [rows] = await pool.execute(
       `SELECT tsa.id, tsa.subject_id, s.subject_code, s.subject_name, s.track
@@ -37,9 +37,10 @@ router.get('/subjects', authenticateJWT, requireRole(['teacher']), async (req, r
 });
 
 // GET /api/teacher/gradebook - enrollments for teacher's assigned subjects
-router.get('/gradebook', authenticateJWT, requireRole(['teacher']), async (req, res, next) => {
+router.get('/gradebook', authenticateJWT, requireRole(['TEACHER']), async (req, res, next) => {
   try {
     const subjectId = req.query.subject_id ? Number(req.query.subject_id) : null;
+    
     if (req.query.subject_id && Number.isNaN(subjectId)) {
       return res.status(400).json({ message: 'subject_id must be numeric.' });
     }

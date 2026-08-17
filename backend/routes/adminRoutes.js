@@ -5,13 +5,11 @@ const { authenticateJWT, requireRole } = require('../middleware/authMiddleware')
 
 const router = express.Router();
 
-// GET /api/admin/users - list users (protected: admin only)
-router.get('/users', authenticateJWT, requireRole(['admin', 'administrator', 'principal']), async (req, res, next) => {
+// GET /api/admin/users - list users
+router.get('/users', authenticateJWT, requireRole(['admin']), async (req, res, next) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT id, username, email, role, is_active
-       FROM users
-       ORDER BY id DESC`
+      `SELECT id, username, email, role, is_active FROM users ORDER BY id DESC`
     );
     return res.json({ users: rows });
   } catch (error) {
@@ -19,19 +17,22 @@ router.get('/users', authenticateJWT, requireRole(['admin', 'administrator', 'pr
   }
 });
 
-// POST /api/admin/users - create a new user (protected: admin only)
-router.post('/users', authenticateJWT, requireRole(['admin', 'administrator', 'principal']), async (req, res, next) => {
+// POST /api/admin/users - create a new user
+router.post('/users', authenticateJWT, requireRole(['admin']), async (req, res, next) => {
   try {
     const { username, email, password, role } = req.body;
+    
+    // 1. Strict Input Validation
     if (!username || !email || !password || !role) {
-      return res.status(400).json({ message: 'username, email, password and role are required.' });
-    }
-    const normalizedRole = String(role).trim().toUpperCase();
-    if (!['ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT'].includes(normalizedRole)) {
-      return res.status(400).json({ message: 'role must be ADMIN, PRINCIPAL, TEACHER, or STUDENT.' });
+      return res.status(400).json({ message: 'Username, email, password, and role are required.' });
     }
 
-    // Check duplicates
+    const normalizedRole = String(role).trim().toUpperCase();
+    if (!['ADMIN', 'TEACHER', 'STUDENT'].includes(normalizedRole)) {
+      return res.status(400).json({ message: 'Invalid role assignment.' });
+    }
+
+    // 2. Prevent Duplicates
     const [existing] = await pool.execute(
       `SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1`,
       [username, email]
@@ -40,10 +41,10 @@ router.post('/users', authenticateJWT, requireRole(['admin', 'administrator', 'p
       return res.status(409).json({ message: 'User with that username or email already exists.' });
     }
 
+    // 3. Hash Password & Insert
     const passwordHash = await bcrypt.hash(password, 10);
     const [result] = await pool.execute(
-      `INSERT INTO users (username, email, password_hash, role, is_active)
-       VALUES (?, ?, ?, ?, 1)`,
+      `INSERT INTO users (username, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)`,
       [username, email, passwordHash, normalizedRole]
     );
 
@@ -53,34 +54,74 @@ router.post('/users', authenticateJWT, requireRole(['admin', 'administrator', 'p
   }
 });
 
+// PUT /api/admin/users/:id - update a user by ID
+router.put('/users/:id', authenticateJWT, requireRole(['admin']), async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    const { username, email, role, is_active } = req.body;
+
+    // 1. Strict Input Validation (Fixing the crash vulnerability)
+    if (!username || !email || !role || is_active === undefined) {
+      return res.status(400).json({ message: 'All fields (username, email, role, is_active) are required.' });
+    }
+
+    const [result] = await pool.execute(
+      `UPDATE users SET username = ?, email = ?, role = ?, is_active = ? WHERE id = ?`,
+      [username, email, role.toUpperCase(), is_active, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    return res.status(200).json({ message: "User updated successfully." });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// DELETE /api/admin/users/:id - delete a user by ID
+router.delete('/users/:id', authenticateJWT, requireRole(['admin']), async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    
+    // Prevent self-deletion
+    if (Number(userId) === Number(req.user?.sub || req.user?.id)) {
+      return res.status(400).json({ message: "You cannot delete your own admin account." });
+    }
+
+    const [result] = await pool.execute('DELETE FROM users WHERE id = ?', [userId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    return res.status(200).json({ message: "User deleted successfully." });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 // POST /api/admin/teacher-subjects - assign subject to teacher
-router.post('/teacher-subjects', authenticateJWT, requireRole(['admin', 'administrator', 'principal']), async (req, res, next) => {
+router.post('/teacher-subjects', authenticateJWT, requireRole(['admin']), async (req, res, next) => {
   try {
     const teacherUserId = Number(req.body?.teacher_user_id);
     const subjectId = Number(req.body?.subject_id);
 
-    if (Number.isNaN(teacherUserId) || Number.isNaN(subjectId)) {
-      return res.status(400).json({ message: 'teacher_user_id and subject_id must be numeric.' });
+    if (Number.isNaN(teacherUserId) || Number.isNaN(subjectId) || teacherUserId === 0 || subjectId === 0) {
+      return res.status(400).json({ message: 'Valid teacher_user_id and subject_id are required.' });
     }
 
-    const [teacherRows] = await pool.execute(
-      `SELECT id, role FROM users WHERE id = ? LIMIT 1`,
-      [teacherUserId]
-    );
-    if (!teacherRows.length) return res.status(404).json({ message: 'Teacher user not found.' });
-    if (String(teacherRows[0].role || '').toUpperCase() !== 'TEACHER') {
-      return res.status(400).json({ message: 'Selected user is not a teacher.' });
+    const [teacherRows] = await pool.execute(`SELECT id, role FROM users WHERE id = ? LIMIT 1`, [teacherUserId]);
+    if (!teacherRows.length || String(teacherRows[0].role).toUpperCase() !== 'TEACHER') {
+      return res.status(400).json({ message: 'Valid Teacher user not found.' });
     }
 
-    const [subjectRows] = await pool.execute(
-      `SELECT id FROM subjects WHERE id = ? LIMIT 1`,
-      [subjectId]
-    );
+    const [subjectRows] = await pool.execute(`SELECT id FROM subjects WHERE id = ? LIMIT 1`, [subjectId]);
     if (!subjectRows.length) return res.status(404).json({ message: 'Subject not found.' });
 
     await pool.execute(
-      `INSERT IGNORE INTO teacher_subject_assignments (teacher_user_id, subject_id)
-       VALUES (?, ?)`,
+      `INSERT IGNORE INTO teacher_subject_assignments (teacher_user_id, subject_id) VALUES (?, ?)`,
       [teacherUserId, subjectId]
     );
 
@@ -91,12 +132,11 @@ router.post('/teacher-subjects', authenticateJWT, requireRole(['admin', 'adminis
 });
 
 // GET /api/admin/teacher-subjects - list all teacher-subject assignments
-router.get('/teacher-subjects', authenticateJWT, requireRole(['admin', 'administrator', 'principal']), async (req, res, next) => {
+router.get('/teacher-subjects', authenticateJWT, requireRole(['admin']), async (req, res, next) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT tsa.id, tsa.teacher_user_id, tsa.subject_id,
-              u.username AS teacher_username, u.email AS teacher_email,
-              s.subject_code, s.subject_name
+      `SELECT tsa.id, tsa.teacher_user_id, tsa.subject_id, u.username AS teacher_username, 
+              u.email AS teacher_email, s.subject_code, s.subject_name
        FROM teacher_subject_assignments tsa
        JOIN users u ON u.id = tsa.teacher_user_id
        JOIN subjects s ON s.id = tsa.subject_id
@@ -108,23 +148,18 @@ router.get('/teacher-subjects', authenticateJWT, requireRole(['admin', 'administ
   }
 });
 
-// GET /api/admin/subjects - list subjects for admin forms
-router.get('/subjects', authenticateJWT, requireRole(['admin', 'administrator', 'principal']), async (req, res, next) => {
+// GET /api/admin/subjects - list subjects
+router.get('/subjects', authenticateJWT, requireRole(['admin']), async (req, res, next) => {
   try {
-    const [rows] = await pool.execute(
-      `SELECT id, subject_code, subject_name, is_elective, track, min_grade, max_grade
-       FROM subjects
-       ORDER BY subject_name ASC`
-    );
+    const [rows] = await pool.execute(`SELECT * FROM subjects ORDER BY subject_name ASC`);
     return res.json({ subjects: rows });
   } catch (error) {
     return next(error);
   }
 });
 
-
 // POST /api/admin/override-grade10 - Admin override for locked Grade 10 elective
-router.post('/override-grade10', authenticateJWT, requireRole(['admin','administrator','principal']), async (req, res, next) => {
+router.post('/override-grade10', authenticateJWT, requireRole(['admin']), async (req, res, next) => {
   const { student_id, track, subject } = req.body || {};
   if (!student_id || !track) return res.status(400).json({ message: 'student_id and track are required.' });
 
@@ -132,36 +167,26 @@ router.post('/override-grade10', authenticateJWT, requireRole(['admin','administ
   try {
     await conn.beginTransaction();
 
-    // Ensure student exists and is Grade 10
     const [sRows] = await conn.execute(`SELECT id, grade_level FROM students WHERE id = ? LIMIT 1 FOR UPDATE`, [student_id]);
-    if (!sRows.length) {
+    if (!sRows.length || sRows[0].grade_level !== 10) {
       await conn.rollback();
-      return res.status(404).json({ message: 'Student not found.' });
-    }
-    const student = sRows[0];
-    if (student.grade_level !== 10) {
-      await conn.rollback();
-      return res.status(400).json({ message: 'Admin override only applicable to Grade 10 students.' });
+      return res.status(400).json({ message: 'Invalid student or not in Grade 10.' });
     }
 
-    // Call stored procedure (defined in schema.sql) to perform admin override safely
     await conn.query(`CALL sp_admin_override_grade10_elective(?, ?, ?)`, [student_id, track, subject || null]);
-
+    
     await conn.execute(
       `INSERT INTO admin_actions (admin_user_id, student_id, action, details) VALUES (?, ?, ?, ?)`,
-      [req.user.id, student_id, 'override_grade10_elective', JSON.stringify({ track, subject })]
+      [req.user.id || req.user.sub, student_id, 'override_grade10_elective', JSON.stringify({ track, subject })]
     );
 
     await conn.commit();
     return res.json({ message: 'Admin override applied.' });
   } catch (err) {
-    try { await conn.rollback(); } catch (e) {}
-    if (err && err.sqlMessage) {
-      return next(err);
-    }
+    if (conn) await conn.rollback().catch(() => {});
     return next(err);
   } finally {
-    conn.release();
+    if (conn) conn.release();
   }
 });
 

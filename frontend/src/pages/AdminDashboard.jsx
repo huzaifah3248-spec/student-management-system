@@ -30,8 +30,37 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
-
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editForm, setEditForm] = useState({ username: '', email: '', role: 'STUDENT', is_active: 1 });
   const clearNotice = () => { setError(''); setMessage(''); };
+
+  const handleStartEdit = (user) => {
+    setEditingUserId(user.id);
+    setEditForm({
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      is_active: user.is_active
+    });
+  };
+const handleUpdateUser = async (event, userId) => {
+    event.preventDefault();
+    clearNotice();
+    try {
+      await axios.put(`/api/admin/users/${userId}`, editForm);
+      setMessage('User updated successfully.');
+      setEditingUserId(null); // Close the edit mode
+      await loadData(); // Refresh table data
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update user.');
+    }
+  };
+
+
+  const handleCancelEdit = () => {
+    setEditingUserId(null);
+    setEditForm({ username: '', email: '', role: 'STUDENT', is_active: 1 });
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -88,6 +117,19 @@ export default function AdminDashboard() {
       await loadData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create student.');
+    }
+  };
+
+  // Handle User Deletion
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    clearNotice();
+    try {
+      await axios.delete(`/api/admin/users/${userId}`);
+      setMessage('User deleted successfully.');
+      await loadData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete user.');
     }
   };
 
@@ -282,7 +324,6 @@ export default function AdminDashboard() {
                     <select className="form-select" value={userForm.role} onChange={(e) => setUserForm((s) => ({ ...s, role: e.target.value }))}>
                       <option value="STUDENT">STUDENT</option>
                       <option value="TEACHER">TEACHER</option>
-                      <option value="PRINCIPAL">PRINCIPAL</option>
                       <option value="ADMIN">ADMIN</option>
                     </select>
                   </div>
@@ -298,20 +339,109 @@ export default function AdminDashboard() {
                 <div className="table-responsive">
                   <table className="table table-sm table-striped align-middle mb-0">
                     <thead>
-                      <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Active</th></tr>
+                      <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Active</th><th>Actions</th></tr>
                     </thead>
-                    <tbody>
-                      {users.map((u) => (
+                   <tbody>
+                                        {users.map((u) => {
+                      const isEditing = editingUserId === u.id;
+                      return (
                         <tr key={u.id}>
                           <td>{u.id}</td>
-                          <td><strong>{u.username}</strong></td>
-                          <td>{u.email}</td>
-                          <td><span className={`badge ${String(u.role).toUpperCase() === 'ADMIN' || String(u.role).toUpperCase() === 'PRINCIPAL' ? 'bg-danger' : String(u.role).toUpperCase() === 'TEACHER' ? 'bg-info text-dark' : 'bg-secondary'}`}>{u.role}</span></td>
-                          <td>{u.is_active ? <span className="badge bg-success">Active</span> : <span className="badge bg-secondary">Inactive</span>}</td>
+                          <td>
+                            {isEditing ? (
+                              <input 
+                                className="form-control form-control-sm" 
+                                value={editForm.username} 
+                                onChange={(e) => setEditForm(s => ({ ...s, username: e.target.value }))} 
+                                required 
+                              />
+                            ) : (
+                              <strong>{u.username}</strong>
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <input 
+                                className="form-control form-control-sm" 
+                                type="email" 
+                                value={editForm.email} 
+                                onChange={(e) => setEditForm(s => ({ ...s, email: e.target.value }))} 
+                                required 
+                              />
+                            ) : (
+                              u.email
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <select 
+                                className="form-select form-select-sm" 
+                                value={editForm.role} 
+                                onChange={(e) => setEditForm(s => ({ ...s, role: e.target.value }))}
+                              >
+                                <option value="STUDENT">STUDENT</option>
+                                <option value="TEACHER">TEACHER</option>
+                                <option value="ADMIN">ADMIN</option>
+                              </select>
+                            ) : (
+                              <span className={`badge ${String(u.role).toUpperCase() === 'ADMIN' ? 'bg-danger' : String(u.role).toUpperCase() === 'TEACHER' ? 'bg-info text-dark' : 'bg-secondary'}`}>
+                                {u.role}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <select 
+                                className="form-select form-select-sm" 
+                                value={editForm.is_active} 
+                                onChange={(e) => setEditForm(s => ({ ...s, is_active: Number(e.target.value) }))}
+                              >
+                                <option value={1}>Active</option>
+                                <option value={0}>Inactive</option>
+                              </select>
+                            ) : (
+                              u.is_active ? <span className="badge bg-success">Active</span> : <span className="badge bg-secondary">Inactive</span>
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <div className="d-flex gap-1">
+                                <button 
+                                  type="button" 
+                                  className="btn btn-sm btn-success" 
+                                  onClick={(e) => handleUpdateUser(e, u.id)}
+                                >
+                                  Save
+                                </button>
+                                <button 
+                                  type="button" 
+                                  className="btn btn-sm btn-secondary" 
+                                  onClick={handleCancelEdit}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="d-flex gap-1">
+                                <button 
+                                  className="btn btn-sm btn-primary" 
+                                  onClick={() => handleStartEdit(u)}
+                                >
+                                  Edit
+                                </button>
+                                <button 
+                                  className="btn btn-sm btn-danger" 
+                                  onClick={() => handleDeleteUser(u.id)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </td>
                         </tr>
-                      ))}
-                      {users.length === 0 && <tr><td colSpan="5" className="text-muted text-center">No users found.</td></tr>}
-                    </tbody>
+                      );
+                    })}
+                  </tbody>    
                   </table>
                 </div>
               </div>

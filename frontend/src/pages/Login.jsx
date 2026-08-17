@@ -14,10 +14,11 @@ export default function Login() {
     setError('');
     try {
       const currentUser = await login({ identifier, password });
-      const role = String(currentUser?.role || '').toLowerCase();
-      if (role === 'admin' || role === 'principal' || role === 'administrator') navigate('/admin');
-      else if (role === 'teacher') navigate('/teacher');
-      else if (role === 'student') navigate('/student');
+      const role = String(currentUser?.role || '').toUpperCase(); // Synchronized uppercase
+
+      if (role === 'ADMIN') navigate('/admin');
+      else if (role === 'TEACHER') navigate('/teacher');
+      else if (role === 'STUDENT') navigate('/student');
       else navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed.');

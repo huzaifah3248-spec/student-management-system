@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './components/AuthProvider';
 import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
@@ -11,7 +11,7 @@ import TeacherDashboard from './pages/TeacherDashboard';
 
 function Navbar() {
   const { user, logout } = useAuth();
-  const role = String(user?.role || '').toLowerCase();
+  const role = String(user?.role || '').toUpperCase(); // Synchronized uppercase
 
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -28,29 +28,19 @@ function Navbar() {
               </li>
             )}
             {!user && (
-              <li className="nav-item">
-                <Link className="nav-link" to="/login">Login</Link>
-              </li>
+              <>
+                <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>
+                <li className="nav-item"><Link className="nav-link" to="/register">Register</Link></li>
+              </>
             )}
-            {!user && (
-              <li className="nav-item">
-                <Link className="nav-link" to="/register">Register</Link>
-              </li>
+            {user && role === 'ADMIN' && (
+              <li className="nav-item"><Link className="nav-link" to="/admin">Admin</Link></li>
             )}
-            {user && (role === 'admin' || role === 'principal' || role === 'administrator') && (
-              <li className="nav-item">
-                <Link className="nav-link" to="/admin">Admin</Link>
-              </li>
+            {user && role === 'TEACHER' && (
+              <li className="nav-item"><Link className="nav-link" to="/teacher">Teacher</Link></li>
             )}
-            {user && role === 'teacher' && (
-              <li className="nav-item">
-                <Link className="nav-link" to="/teacher">Teacher</Link>
-              </li>
-            )}
-            {user && role === 'student' && (
-              <li className="nav-item">
-                <Link className="nav-link" to="/student">Student</Link>
-              </li>
+            {user && role === 'STUDENT' && (
+              <li className="nav-item"><Link className="nav-link" to="/student">Student</Link></li>
             )}
           </ul>
           {user && (
@@ -60,6 +50,25 @@ function Navbar() {
       </div>
     </nav>
   );
+}
+
+function RoleBasedRedirect() {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = String(user.role || '').toUpperCase();
+  if (role === 'ADMIN') {
+    return <AdminDashboard />;
+  } else if (role === 'TEACHER') {
+    return <TeacherDashboard />;
+  } else if (role === 'STUDENT') {
+    return <StudentDashboard />;
+  }
+  
+  return <Home />;
 }
 
 export default function App() {
@@ -73,17 +82,17 @@ export default function App() {
             <Route path="/register" element={<Register />} />
             <Route
               path="/admin"
-              element={<PrivateRoute allowedRoles={['admin', 'administrator', 'principal']}><AdminDashboard /></PrivateRoute>}
+              element={<PrivateRoute allowedRoles={['ADMIN']}><AdminDashboard /></PrivateRoute>}
             />
             <Route
               path="/teacher"
-              element={<PrivateRoute allowedRoles={['teacher']}><TeacherDashboard /></PrivateRoute>}
+              element={<PrivateRoute allowedRoles={['TEACHER']}><TeacherDashboard /></PrivateRoute>}
             />
             <Route
               path="/student"
-              element={<PrivateRoute allowedRoles={['student']}><StudentDashboard /></PrivateRoute>}
+              element={<PrivateRoute allowedRoles={['STUDENT']}><StudentDashboard /></PrivateRoute>}
             />
-            <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+            <Route path="/" element={<PrivateRoute><RoleBasedRedirect /></PrivateRoute>} />
           </Routes>
         </main>
       </BrowserRouter>

@@ -4,15 +4,15 @@ import { useAuth } from '../components/AuthProvider';
 
 export default function Home() {
   const { user } = useAuth();
-  const role = String(user?.role || '').toLowerCase();
+  const role = String(user?.role || '').toUpperCase(); // Synchronized uppercase
 
-  if (role === 'admin' || role === 'principal' || role === 'administrator') {
+  if (role === 'ADMIN') {
     return <Navigate to="/admin" replace />;
   }
-  if (role === 'teacher') {
+  if (role === 'TEACHER') {
     return <Navigate to="/teacher" replace />;
   }
-  if (role === 'student') {
+  if (role === 'STUDENT') {
     return <Navigate to="/student" replace />;
   }
 

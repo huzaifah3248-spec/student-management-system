@@ -6,16 +6,16 @@ export default function PrivateRoute({ children, allowedRoles }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
 
-  if (allowedRoles && Array.isArray(allowedRoles) && allowedRoles.length > 0) {
-    const role = (user?.role || '').toLowerCase();
-    const allowed = allowedRoles.map((r) => String(r).toLowerCase());
-    if (!allowed.includes(role)) {
-      // Not authorized for this route
+  const userRole = String(user?.role || '').toUpperCase();
+
+  if (allowedRoles) {
+    const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+    const allowed = rolesArray.map((r) => String(r).toUpperCase());
+
+    if (!allowed.includes(userRole)) {
+      // Not authorized for this route, redirect home
       return <Navigate to="/" replace />;
     }
-  } else if (allowedRoles && !Array.isArray(allowedRoles)) {
-    const role = (user?.role || '').toLowerCase();
-    if (String(allowedRoles).toLowerCase() !== role) return <Navigate to="/" replace />;
   }
 
   return children;

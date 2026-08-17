@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../config/db');
-const { authenticateJWT, requireRole } = require('../middleware/authMiddleware');
+const { authenticateJWT } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -15,11 +15,20 @@ router.get('/', authenticateJWT, async (req, res, next) => {
                FROM classrooms c
                LEFT JOIN students s ON s.grade_level = c.grade_level AND s.section_no = c.section_no`;
     const params = [];
-
     const conditions = [];
-    if (gradeFilter) { conditions.push('c.grade_level = ?'); params.push(gradeFilter); }
-    if (sectionFilter) { conditions.push('c.section_no = ?'); params.push(sectionFilter); }
-    if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
+
+    if (gradeFilter) { 
+      conditions.push('c.grade_level = ?'); 
+      params.push(gradeFilter); 
+    }
+    if (sectionFilter) { 
+      conditions.push('c.section_no = ?'); 
+      params.push(sectionFilter); 
+    }
+    
+    if (conditions.length) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+    }
 
     sql += ' GROUP BY c.id, c.grade_level, c.section_no, c.capacity';
     sql += ' ORDER BY c.grade_level ASC, c.section_no ASC';

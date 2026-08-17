@@ -5,7 +5,7 @@ const { authenticateJWT, requireRole } = require('../middleware/authMiddleware')
 const router = express.Router();
 
 // POST /api/enrollments - enroll a student in a subject
-router.post('/', authenticateJWT, requireRole(['admin','administrator','principal','teacher']), async (req, res, next) => {
+router.post('/', authenticateJWT, requireRole(['admin','teacher']), async (req, res, next) => {
   const { student_id, subject_id, academic_year, grade_level, term } = req.body || {};
   if (!student_id || !subject_id || !academic_year || !grade_level || !term) {
     return res.status(400).json({ message: 'student_id, subject_id, academic_year, grade_level and term are required.' });
