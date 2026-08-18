@@ -69,7 +69,7 @@ async function register(req, res, next) {
       return res.status(400).json({ message: "username, email, and password are required." });
     }
 
-    if (!['ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT'].includes(normalizedRole)) {
+    if (!['ADMIN', 'TEACHER', 'STUDENT'].includes(normalizedRole)) {
       return res.status(400).json({ message: 'Invalid role.' });
     }
 
