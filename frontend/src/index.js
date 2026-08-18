@@ -5,7 +5,7 @@ import App from './App';
 import './index.css';
 
 
-// 🚀 AUTOMATIC TOKEN INJECTION
+// AUTOMATIC TOKEN INJECTION
 axios.interceptors.request.use(
   (config) => {
     // 1. Grab the token directly from local storage right before the request leaves
@@ -24,7 +24,7 @@ axios.interceptors.request.use(
 // Set base URL with fallback
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-// 🚀 AUTOMATIC TOKEN INJECTION
+//  AUTOMATIC TOKEN INJECTION
 axios.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');

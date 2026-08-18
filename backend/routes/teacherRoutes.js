@@ -5,7 +5,7 @@ const { authenticateJWT, requireRole } = require('../middleware/authMiddleware')
 const router = express.Router();
 
 // GET /api/teacher/students - list users with role STUDENT
-router.get('/students', authenticateJWT, requireRole(['TEACHER', 'ADMIN', 'PRINCIPAL']), async (req, res, next) => {
+router.get('/students', authenticateJWT, requireRole(['TEACHER', 'ADMIN']), async (req, res, next) => {
   try {
     const [rows] = await pool.execute(
       `SELECT s.id, s.student_id, s.first_name, s.last_name, s.grade_level, s.section_no, s.class_roll_no, u.email
