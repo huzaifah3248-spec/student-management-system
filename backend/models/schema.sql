@@ -7,9 +7,7 @@ CREATE DATABASE IF NOT EXISTS school_management_system
 
 USE school_management_system;
 
--- -----------------------------------------------------------
 -- 1. USERS TABLE
--- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50) NOT NULL UNIQUE,
@@ -21,9 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- -----------------------------------------------------------
 -- 2. CLASSROOMS TABLE
--- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS classrooms (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   grade_level TINYINT UNSIGNED NOT NULL,
@@ -167,7 +163,6 @@ FROM (
 ) AS s
 ON DUPLICATE KEY UPDATE capacity = VALUES(capacity);
 
--- NOTE: VALUES() is deprecated but still functional in MySQL 8.0.43.
 INSERT INTO subjects (subject_code, subject_name, is_elective, track, min_grade, max_grade) VALUES
   ('URDU',     'Urdu',                          0, 'CORE',    1, 10),
   ('MATH',     'Mathematics',                   0, 'CORE',    1, 10),
@@ -368,7 +363,7 @@ BEGIN
         SET MESSAGE_TEXT = 'Invalid grade/section classroom.';
     END IF;
 
-    -- Count current students (also locked)
+    -- Count current students 
     SELECT COUNT(*) INTO v_current_count
     FROM students
     WHERE grade_level = p_grade_level
@@ -404,7 +399,7 @@ BEGIN
       p_class_roll_no,
       p_elective_track,
       p_elective_subject,
-      0   -- trigger D will auto-set to 1 if grade_level = 10
+      0   
     );
 
   COMMIT;
