@@ -191,7 +191,7 @@ const handleUpdateUser = async (event, userId) => {
   return (
     <div>
       <div className="dashboard-header">
-        <h2>Admin Dashboard</h2>
+        <h2>Principal Dashboard</h2>
         <p>Manage users, students, classrooms, and academic records.</p>
       </div>
 
@@ -324,7 +324,7 @@ const handleUpdateUser = async (event, userId) => {
                     <select className="form-select" value={userForm.role} onChange={(e) => setUserForm((s) => ({ ...s, role: e.target.value }))}>
                       <option value="STUDENT">STUDENT</option>
                       <option value="TEACHER">TEACHER</option>
-                      <option value="ADMIN">ADMIN</option>
+                    <option value="ADMIN">PRINCIPAL</option>
                     </select>
                   </div>
                   <button className="btn btn-primary w-100">Create User</button>
@@ -381,7 +381,7 @@ const handleUpdateUser = async (event, userId) => {
                               >
                                 <option value="STUDENT">STUDENT</option>
                                 <option value="TEACHER">TEACHER</option>
-                                <option value="ADMIN">ADMIN</option>
+                                <option value="ADMIN">PRINCIPAL</option>
                               </select>
                             ) : (
                               <span className={`badge ${String(u.role).toUpperCase() === 'ADMIN' ? 'bg-danger' : String(u.role).toUpperCase() === 'TEACHER' ? 'bg-info text-dark' : 'bg-secondary'}`}>

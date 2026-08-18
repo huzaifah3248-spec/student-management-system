@@ -26,7 +26,7 @@ export default function Register() {
       <div className="col-12 col-sm-10 col-md-7 col-lg-5">
         <div className="card shadow-sm">
           <div className="card-body">
-            <h2 className="h4 mb-3">Register (Dev)</h2>
+            <h2 className="h4 mb-3">Register</h2>
             <form onSubmit={submit}>
               <div className="mb-3">
                 <label className="form-label">Username</label>
@@ -45,7 +45,7 @@ export default function Register() {
                 <select className="form-select" value={form.role} onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}>
                   <option value="STUDENT">STUDENT</option>
                   <option value="TEACHER">TEACHER</option>
-                  <option value="ADMIN">ADMIN</option>
+                  <option value="ADMIN">PRINCIPAL</option>
                 </select>
               </div>
               {message && <div className="alert alert-success py-2">{message}</div>}
